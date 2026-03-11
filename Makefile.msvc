@@ -1,0 +1,32 @@
+# ============================================================
+# Win32 テキストエディタ - Makefile (MSVC / nmake用)
+# ツールチェーン: Visual C++ (cl.exe)
+# 規格       : C++03 (/Zc:__cplusplus 互換)
+# 使い方     : Developer Command Prompt で nmake /f Makefile.msvc
+# ============================================================
+
+CXX      = cl
+CXXFLAGS = /nologo /W3 /EHsc /utf-8 /DUNICODE /D_UNICODE /DWINVER=0x0501 /D_WIN32_WINNT=0x0501
+LDFLAGS  = /nologo /subsystem:windows
+LIBS     = comctl32.lib comdlg32.lib kernel32.lib user32.lib gdi32.lib
+
+TARGET   = Aoi32_C_AI.exe
+SRC      = src\main.cpp
+OBJ      = src\main.obj
+
+# ============================================================
+# ターゲット
+# ============================================================
+
+all: $(TARGET)
+
+$(TARGET): $(OBJ)
+	link $(LDFLAGS) /out:$(TARGET) $(OBJ) $(LIBS)
+
+$(OBJ): $(SRC) src\resource.h
+	$(CXX) $(CXXFLAGS) /c /Fo$(OBJ) $(SRC)
+
+clean:
+	del /Q $(OBJ) $(TARGET) 2>nul
+
+.PHONY: all clean
