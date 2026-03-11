@@ -9,9 +9,8 @@ CXXFLAGS = -Wall -Wextra -std=c++03 -DUNICODE -D_UNICODE -mwindows
 LDFLAGS  = -mwindows
 LIBS     = -lcomctl32 -lcomdlg32
 
-TARGET   = Aoi32_C_AI.exe
-SRC      = src/main.cpp
-OBJ      = src/main.o
+TARGET = Aoi32_C_AI.exe
+OBJS   = src/main.o src/MainWnd.o src/FileIO.o
 
 # ============================================================
 # ターゲット
@@ -19,13 +18,19 @@ OBJ      = src/main.o
 
 all: $(TARGET)
 
-$(TARGET): $(OBJ)
+$(TARGET): $(OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-$(OBJ): $(SRC) src/resource.h
+src/main.o: src/main.cpp src/MainWnd.h src/resource.h
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+src/MainWnd.o: src/MainWnd.cpp src/MainWnd.h src/FileIO.h src/resource.h src/common.h
+	$(CXX) $(CXXFLAGS) -c -o $@ $<
+
+src/FileIO.o: src/FileIO.cpp src/FileIO.h src/common.h
 	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 clean:
-	rm -f $(OBJ) $(TARGET)
+	rm -f $(OBJS) $(TARGET)
 
 .PHONY: all clean

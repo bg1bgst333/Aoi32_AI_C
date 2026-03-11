@@ -10,9 +10,8 @@ CXXFLAGS = /nologo /W3 /EHsc /utf-8 /DUNICODE /D_UNICODE /DWINVER=0x0501 /D_WIN3
 LDFLAGS  = /nologo /subsystem:windows
 LIBS     = comctl32.lib comdlg32.lib kernel32.lib user32.lib gdi32.lib
 
-TARGET   = Aoi32_C_AI.exe
-SRC      = src\main.cpp
-OBJ      = src\main.obj
+TARGET = Aoi32_C_AI.exe
+OBJS   = src\main.obj src\MainWnd.obj src\FileIO.obj
 
 # ============================================================
 # ターゲット
@@ -20,13 +19,19 @@ OBJ      = src\main.obj
 
 all: $(TARGET)
 
-$(TARGET): $(OBJ)
-	link $(LDFLAGS) /out:$(TARGET) $(OBJ) $(LIBS)
+$(TARGET): $(OBJS)
+	link $(LDFLAGS) /out:$(TARGET) $(OBJS) $(LIBS)
 
-$(OBJ): $(SRC) src\resource.h
-	$(CXX) $(CXXFLAGS) /c /Fo$(OBJ) $(SRC)
+src\main.obj: src\main.cpp src\MainWnd.h src\resource.h
+	$(CXX) $(CXXFLAGS) /c /Fosrc\main.obj src\main.cpp
+
+src\MainWnd.obj: src\MainWnd.cpp src\MainWnd.h src\FileIO.h src\resource.h src\common.h
+	$(CXX) $(CXXFLAGS) /c /Fosrc\MainWnd.obj src\MainWnd.cpp
+
+src\FileIO.obj: src\FileIO.cpp src\FileIO.h src\common.h
+	$(CXX) $(CXXFLAGS) /c /Fosrc\FileIO.obj src\FileIO.cpp
 
 clean:
-	del /Q $(OBJ) $(TARGET) 2>nul
+	del /Q $(OBJS) $(TARGET) 2>nul
 
 .PHONY: all clean
