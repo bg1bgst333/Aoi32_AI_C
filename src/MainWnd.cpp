@@ -28,6 +28,8 @@ static WCHAR     g_szFilePath[MAX_PATH] = { 0 };
 static bool      g_bModified    = false;
 static bool      g_bWordWrap    = false;
 static bool      g_bIgnoreChange = false;
+static TextEncoding g_enc        = ENC_UTF8_BOM;
+static LineEnding   g_le         = LE_CRLF;
 
 // ============================================================
 // 前方宣言 (このファイル内のみ)
@@ -160,8 +162,28 @@ static HMENU CreateMainMenu()
     AppendMenuW(hMenu, MF_POPUP,     (UINT_PTR)hEdit,    L"編集(&E)");
 
     HMENU hFormat = CreatePopupMenu();
-    AppendMenuW(hFormat, MF_STRING, IDM_FORMAT_WORDWRAP, L"右端で折り返す(&W)");
-    AppendMenuW(hFormat, MF_STRING, IDM_FORMAT_FONT,     L"フォント(&F)...");
+    AppendMenuW(hFormat, MF_STRING,    IDM_FORMAT_WORDWRAP, L"右端で折り返す(&W)");
+    AppendMenuW(hFormat, MF_STRING,    IDM_FORMAT_FONT,     L"フォント(&F)...");
+    AppendMenuW(hFormat, MF_SEPARATOR, 0,                   NULL);
+
+    HMENU hEnc = CreatePopupMenu();
+    AppendMenuW(hEnc, MF_STRING, IDM_ENC_SJIS,         L"Shift-JIS");
+    AppendMenuW(hEnc, MF_STRING, IDM_ENC_JIS,          L"JIS (ISO-2022-JP)");
+    AppendMenuW(hEnc, MF_STRING, IDM_ENC_UTF8,         L"UTF-8");
+    AppendMenuW(hEnc, MF_STRING, IDM_ENC_UTF8_BOM,     L"UTF-8 (BOM 付き)");
+    AppendMenuW(hEnc, MF_STRING, IDM_ENC_UTF16_LE,     L"UTF-16 LE");
+    AppendMenuW(hEnc, MF_STRING, IDM_ENC_UTF16_LE_BOM, L"UTF-16 LE (BOM 付き)");
+    AppendMenuW(hEnc, MF_STRING, IDM_ENC_UTF16_BE,     L"UTF-16 BE");
+    AppendMenuW(hEnc, MF_STRING, IDM_ENC_UTF16_BE_BOM, L"UTF-16 BE (BOM 付き)");
+    AppendMenuW(hEnc, MF_STRING, IDM_ENC_EUCJP,        L"EUC-JP");
+    AppendMenuW(hFormat, MF_POPUP, (UINT_PTR)hEnc, L"文字コード(&E)");
+
+    HMENU hLe = CreatePopupMenu();
+    AppendMenuW(hLe, MF_STRING, IDM_LE_CRLF, L"CRLF (Windows)");
+    AppendMenuW(hLe, MF_STRING, IDM_LE_LF,   L"LF (Unix)");
+    AppendMenuW(hLe, MF_STRING, IDM_LE_CR,   L"CR (Mac)");
+    AppendMenuW(hFormat, MF_POPUP, (UINT_PTR)hLe, L"改行コード(&L)");
+
     AppendMenuW(hMenu, MF_POPUP, (UINT_PTR)hFormat, L"書式(&O)");
 
     HMENU hHelp = CreatePopupMenu();
@@ -225,8 +247,8 @@ static void CreateStatusBar(HWND hParent)
 
     if (!g_hStatus) return;
 
-    int parts[2] = { 200, -1 };
-    SendMessageW(g_hStatus, SB_SETPARTS, 2, (LPARAM)parts);
+    int parts[3] = { 200, 400, -1 };
+    SendMessageW(g_hStatus, SB_SETPARTS, 3, (LPARAM)parts);
 }
 
 // ============================================================
@@ -267,11 +289,13 @@ static void ResizeControls(HWND hParent)
         GetWindowRect(g_hStatus, &rcStatus);
         nStatusHeight = rcStatus.bottom - rcStatus.top;
 
-        int parts[2];
-        parts[0] = rcClient.right - 250;
+        int parts[3];
+        parts[0] = rcClient.right - 350;
         if (parts[0] < 50) parts[0] = 50;
-        parts[1] = -1;
-        SendMessageW(g_hStatus, SB_SETPARTS, 2, (LPARAM)parts);
+        parts[1] = rcClient.right - 160;
+        if (parts[1] < parts[0] + 50) parts[1] = parts[0] + 50;
+        parts[2] = -1;
+        SendMessageW(g_hStatus, SB_SETPARTS, 3, (LPARAM)parts);
     }
 
     if (g_hEdit) {
@@ -307,6 +331,32 @@ static void UpdateTitle(HWND hWnd)
 // ステータスバー更新
 // ============================================================
 
+static const WCHAR* EncName(TextEncoding enc)
+{
+    switch (enc) {
+    case ENC_SJIS:         return L"Shift-JIS";
+    case ENC_JIS:          return L"JIS";
+    case ENC_UTF8:         return L"UTF-8";
+    case ENC_UTF8_BOM:     return L"UTF-8 BOM";
+    case ENC_UTF16_LE:     return L"UTF-16 LE";
+    case ENC_UTF16_LE_BOM: return L"UTF-16 LE BOM";
+    case ENC_UTF16_BE:     return L"UTF-16 BE";
+    case ENC_UTF16_BE_BOM: return L"UTF-16 BE BOM";
+    case ENC_EUCJP:        return L"EUC-JP";
+    default:               return L"UTF-8 BOM";
+    }
+}
+
+static const WCHAR* LeName(LineEnding le)
+{
+    switch (le) {
+    case LE_CRLF: return L"CRLF";
+    case LE_LF:   return L"LF";
+    case LE_CR:   return L"CR";
+    default:      return L"CRLF";
+    }
+}
+
 static void UpdateStatusBar()
 {
     if (!g_hStatus || !g_hEdit) return;
@@ -326,6 +376,10 @@ static void UpdateStatusBar()
     WCHAR szPos[64];
     wsprintfW(szPos, L"  %d行  %d列", nLine, nCol);
     SendMessageW(g_hStatus, SB_SETTEXTW, 1, (LPARAM)szPos);
+
+    WCHAR szEncLe[64];
+    wsprintfW(szEncLe, L"  %s  %s", EncName(g_enc), LeName(g_le));
+    SendMessageW(g_hStatus, SB_SETTEXTW, 2, (LPARAM)szEncLe);
 }
 
 // ============================================================
@@ -378,6 +432,8 @@ static void NewFile(HWND hWnd)
 
     g_szFilePath[0] = L'\0';
     g_bModified     = false;
+    g_enc           = ENC_UTF8_BOM;
+    g_le            = LE_CRLF;
     UpdateTitle(hWnd);
     UpdateStatusBar();
 }
@@ -403,7 +459,9 @@ static bool OpenFile(HWND hWnd)
     if (!GetOpenFileNameW(&ofn)) return false;
 
     std::vector<WCHAR> content;
-    if (!DoLoadFile(szPath, content)) {
+    TextEncoding newEnc = ENC_UTF8_BOM;
+    LineEnding   newLe  = LE_CRLF;
+    if (!DoLoadFile(szPath, content, newEnc, newLe)) {
         WCHAR szMsg[MAX_PATH + 64];
         wsprintfW(szMsg,
             L"\u30d5\u30a1\u30a4\u30eb\u3092\u958b\u3051\u307e\u305b\u3093\u3067\u3057\u305f:\n%s",
@@ -411,6 +469,8 @@ static bool OpenFile(HWND hWnd)
         MessageBoxW(hWnd, szMsg, APP_NAME, MB_ICONERROR);
         return false;
     }
+    g_enc = newEnc;
+    g_le  = newLe;
 
     g_bIgnoreChange = true;
     SetWindowTextW(g_hEdit, &content[0]);
@@ -466,7 +526,7 @@ static bool PerformSave(HWND hWnd, const WCHAR* szPath)
     std::vector<WCHAR> wbuf(nLen + 1, L'\0');
     GetWindowTextW(g_hEdit, &wbuf[0], nLen + 1);
 
-    if (!DoSaveFile(szPath, &wbuf[0], nLen)) {
+    if (!DoSaveFile(szPath, &wbuf[0], nLen, g_enc, g_le)) {
         WCHAR szMsg[MAX_PATH + 64];
         wsprintfW(szMsg,
             L"\u30d5\u30a1\u30a4\u30eb\u3092\u4fdd\u5b58\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f:\n%s",
@@ -619,6 +679,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             case IDM_FORMAT_WORDWRAP: ToggleWordWrap(hWnd);    break;
             case IDM_FORMAT_FONT:     ChooseEditorFont(hWnd);  break;
 
+            case IDM_ENC_SJIS:         g_enc = ENC_SJIS;         UpdateStatusBar(); break;
+            case IDM_ENC_JIS:          g_enc = ENC_JIS;          UpdateStatusBar(); break;
+            case IDM_ENC_UTF8:         g_enc = ENC_UTF8;         UpdateStatusBar(); break;
+            case IDM_ENC_UTF8_BOM:     g_enc = ENC_UTF8_BOM;     UpdateStatusBar(); break;
+            case IDM_ENC_UTF16_LE:     g_enc = ENC_UTF16_LE;     UpdateStatusBar(); break;
+            case IDM_ENC_UTF16_LE_BOM: g_enc = ENC_UTF16_LE_BOM; UpdateStatusBar(); break;
+            case IDM_ENC_UTF16_BE:     g_enc = ENC_UTF16_BE;     UpdateStatusBar(); break;
+            case IDM_ENC_UTF16_BE_BOM: g_enc = ENC_UTF16_BE_BOM; UpdateStatusBar(); break;
+            case IDM_ENC_EUCJP:        g_enc = ENC_EUCJP;        UpdateStatusBar(); break;
+
+            case IDM_LE_CRLF: g_le = LE_CRLF; UpdateStatusBar(); break;
+            case IDM_LE_LF:   g_le = LE_LF;   UpdateStatusBar(); break;
+            case IDM_LE_CR:   g_le = LE_CR;   UpdateStatusBar(); break;
+
             case IDM_HELP_ABOUT: ShowAboutDialog(hWnd); break;
             }
         }
@@ -626,7 +700,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_INITMENUPOPUP:
     {
-        HMENU hEditMenu = GetSubMenu(GetMenu(hWnd), 1);
+        HMENU hMainMenu   = GetMenu(hWnd);
+        HMENU hEditMenu   = GetSubMenu(hMainMenu, 1);
+        HMENU hFormatMenu = GetSubMenu(hMainMenu, 2);
+        // 書式メニュー: 0=折り返し, 1=フォント, 2=Sep, 3=文字コード, 4=改行コード
+        HMENU hEncMenu    = GetSubMenu(hFormatMenu, 3);
+        HMENU hLeMenu     = GetSubMenu(hFormatMenu, 4);
+
         if ((HMENU)wParam == hEditMenu) {
             DWORD dwStart = 0, dwEnd = 0;
             SendMessageW(g_hEdit, EM_GETSEL, (WPARAM)&dwStart, (LPARAM)&dwEnd);
@@ -640,6 +720,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             EnableMenuItem(hEditMenu, IDM_EDIT_COPY,   MF_BYCOMMAND | (bHasSel   ? MF_ENABLED : MF_GRAYED));
             EnableMenuItem(hEditMenu, IDM_EDIT_PASTE,  MF_BYCOMMAND | (bCanPaste ? MF_ENABLED : MF_GRAYED));
             EnableMenuItem(hEditMenu, IDM_EDIT_DELETE, MF_BYCOMMAND | (bHasSel   ? MF_ENABLED : MF_GRAYED));
+        } else if ((HMENU)wParam == hEncMenu) {
+            // 文字コードチェックマーク
+            static const UINT encIds[] = {
+                IDM_ENC_SJIS, IDM_ENC_JIS,
+                IDM_ENC_UTF8, IDM_ENC_UTF8_BOM,
+                IDM_ENC_UTF16_LE, IDM_ENC_UTF16_LE_BOM,
+                IDM_ENC_UTF16_BE, IDM_ENC_UTF16_BE_BOM,
+                IDM_ENC_EUCJP
+            };
+            static const TextEncoding encVals[] = {
+                ENC_SJIS, ENC_JIS,
+                ENC_UTF8, ENC_UTF8_BOM,
+                ENC_UTF16_LE, ENC_UTF16_LE_BOM,
+                ENC_UTF16_BE, ENC_UTF16_BE_BOM,
+                ENC_EUCJP
+            };
+            for (int i = 0; i < 9; i++) {
+                CheckMenuItem(hEncMenu, encIds[i],
+                    MF_BYCOMMAND | (g_enc == encVals[i] ? MF_CHECKED : MF_UNCHECKED));
+            }
+        } else if ((HMENU)wParam == hLeMenu) {
+            // 改行コードチェックマーク
+            CheckMenuItem(hLeMenu, IDM_LE_CRLF,
+                MF_BYCOMMAND | (g_le == LE_CRLF ? MF_CHECKED : MF_UNCHECKED));
+            CheckMenuItem(hLeMenu, IDM_LE_LF,
+                MF_BYCOMMAND | (g_le == LE_LF   ? MF_CHECKED : MF_UNCHECKED));
+            CheckMenuItem(hLeMenu, IDM_LE_CR,
+                MF_BYCOMMAND | (g_le == LE_CR   ? MF_CHECKED : MF_UNCHECKED));
         }
         return 0;
     }
