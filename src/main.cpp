@@ -24,7 +24,7 @@ int WINAPI WinMain(
     if (!InitMainWindow(hInst, nCmdShow, &hWnd)) {
         MessageBoxW(NULL,
             L"\u30a6\u30a3\u30f3\u30c9\u30a6\u306e\u521d\u671f\u5316\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002",
-            L"Aoi32_C_AI",
+            L"Aoi32_AI_C",
             MB_ICONERROR);
         return 1;
     }

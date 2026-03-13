@@ -9,7 +9,7 @@ CXXFLAGS = -Wall -Wextra -std=c++03 -DUNICODE -D_UNICODE -mwindows
 LDFLAGS  = -mwindows
 LIBS     = -lcomctl32 -lcomdlg32
 
-TARGET = Aoi32_C_AI.exe
+TARGET = Aoi32_AI_C.exe
 OBJS   = src/main.o src/MainWnd.o src/FileIO.o
 
 # ============================================================
