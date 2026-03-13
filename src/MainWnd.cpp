@@ -10,8 +10,8 @@
 // 定数
 // ============================================================
 
-static const WCHAR* const WINDOW_CLASS_NAME = L"Aoi32_C_AI_v1";
-static const WCHAR* const APP_NAME          = L"Aoi32_C_AI";
+static const WCHAR* const WINDOW_CLASS_NAME = L"Aoi32_AI_C_v1";
+static const WCHAR* const APP_NAME          = L"Aoi32_AI_C";
 static const WCHAR* const DEFAULT_FONT_FACE = L"Consolas";
 static const int          DEFAULT_FONT_PT   = 12;
 
@@ -612,7 +612,7 @@ static void ChooseEditorFont(HWND hWnd)
 static void ShowAboutDialog(HWND hWnd)
 {
     MessageBoxW(hWnd,
-        L"Aoi32_C_AI\n"
+        L"Aoi32_AI_C\n"
         L"\u30d0\u30fc\u30b8\u30e7\u30f3 1.0\n\n"
         L"Win32 API / C++03\n"
         L"\u4fdd\u5b58\u5f62\u5f0f: UTF-8 (BOM\u4ed8\u304d)",

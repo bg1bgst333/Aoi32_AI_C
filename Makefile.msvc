@@ -10,7 +10,7 @@ CXXFLAGS = /nologo /W3 /EHsc /utf-8 /DUNICODE /D_UNICODE /DWINVER=0x0501 /D_WIN3
 LDFLAGS  = /nologo /subsystem:windows
 LIBS     = comctl32.lib comdlg32.lib kernel32.lib user32.lib gdi32.lib
 
-TARGET = Aoi32_C_AI.exe
+TARGET = Aoi32_AI_C.exe
 OBJS   = src\main.obj src\MainWnd.obj src\FileIO.obj
 
 # ============================================================
